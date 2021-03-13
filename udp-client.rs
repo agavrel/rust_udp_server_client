@@ -1,6 +1,6 @@
 const UDP_HEADER: usize = 8;
 const IP_HEADER: usize = 20;
-const AGAVREL_HEADER: usize = 4;
+const AG_HEADER: usize = 4;
 const MAX_DATA_LENGTH: usize = (64 * 1024 - 1) - UDP_HEADER - IP_HEADER;
 
 use std::io::Read;
@@ -11,7 +11,7 @@ pub fn get_chunks_from_file(mut filename: String,total_size: &mut usize) -> Resu
     filename.pop(); // get read of the trailing '\n' in user input.
     let mut file = std::fs::File::open(filename)?;
     let mut list_of_chunks = Vec::new();
-    let chunk_size = MAX_DATA_LENGTH - AGAVREL_HEADER;
+    let chunk_size = MAX_DATA_LENGTH - AG_HEADER;
 
     loop {
         let mut chunk = Vec::with_capacity(chunk_size);
@@ -61,7 +61,7 @@ fn main() {
                     header[1] = (index & 0xff) as u8;
                     header[0] = (index >> 8) as u8;
                     let data:Vec<u8> = [header.as_ref(), chunk].concat();
-                    println!("FILE {} BYTES\n {:?}", index, chunk);
+                    //println!("FILE {} BYTES\n {:?}", index, chunk);
                     println!(
                         "size: {} FILE {:?} of {} BYTES\n {:?}",
                         total_size,
