@@ -10,7 +10,7 @@ use std::io::prelude::*;
 
 pub fn write_chunks_to_file(filename: &str, bytes:Vec<u8>) -> Result<&str, io::Error> {
     let mut file = File::create(filename)?;
-    file.write_all(&bytes)?; // write too many bytes at the end (the content of NULL bytes in the last buffer)
+    file.write_all(&bytes)?;
     Ok(filename)
 }
 
@@ -20,19 +20,30 @@ fn main() {
     let filename = "2.jpg";
     let mut count = 0;
     let mut chunks_cnt:u16 = 0xffff;
-    let mut  bytes_buf:Vec<u8> = Vec::new();
+    let mut bytes_buf:Vec<u8>;// = Vec::new();
 
     loop {
         let mut buf = [0u8; MAX_CHUNK_SIZE];
         let sock = socket.try_clone().expect("Failed to clone socket");
+        bytes_buf = Vec::new();
         match socket.recv_from(&mut buf) {
             Ok((size, src)) => { // thanks https://doc.rust-lang.org/beta/std/net/struct.UdpSocket.html#method.recv_from
                 if count == 0 {
                     chunks_cnt = (buf[2] as u16) << 8 | buf[3] as u16;
-                    bytes_buf = vec![0; MAX_CHUNK_SIZE * chunks_cnt as usize];
+                    //bytes_buf = vec![0; MAX_CHUNK_SIZE * chunks_cnt as usize];
+                    let n = MAX_CHUNK_SIZE * chunks_cnt as usize;
+                    bytes_buf = Vec::with_capacity(n);
+                    unsafe { bytes_buf.set_len(n); }
                 }
                 let packet_index:usize = (buf[0] as usize) << 8 | buf[1] as usize;
-                bytes_buf[packet_index*MAX_CHUNK_SIZE..packet_index*MAX_CHUNK_SIZE+size-AGAVREL_HEADER].copy_from_slice(&buf[AGAVREL_HEADER..size]);
+
+                unsafe {
+                    let dst_ptr = &mut bytes_buf[packet_index*MAX_CHUNK_SIZE] as *mut u8;
+                    let src_ptr = &buf[AGAVREL_HEADER] as *const u8;
+                    std::ptr::copy_nonoverlapping(src_ptr, dst_ptr, size-AGAVREL_HEADER);
+                }
+                //bytes_buf[packet_index*MAX_CHUNK_SIZE..packet_index*MAX_CHUNK_SIZE+size-AGAVREL_HEADER].copy_from_slice(&buf[AGAVREL_HEADER..size]);
+
                 thread::spawn(move || {
                     //let s = String::from_utf8_lossy(&buf);
                     println!("receiving packet {} from: {}", packet_index, src);
