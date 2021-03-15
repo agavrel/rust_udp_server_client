@@ -1,7 +1,8 @@
 const UDP_HEADER: usize = 8;
 const IP_HEADER: usize = 20;
 const AG_HEADER: usize = 4;
-const MAX_CHUNK_SIZE: usize = (64 * 1024 - 1) - UDP_HEADER - IP_HEADER - AG_HEADER;
+const MAX_DATA_LENGTH: usize = (64 * 1024 - 1) - UDP_HEADER - IP_HEADER;
+const MAX_CHUNK_SIZE: usize = MAX_DATA_LENGTH - AG_HEADER;
 
 use std::net::UdpSocket;
 use std::io;
@@ -36,10 +37,7 @@ fn write_chunks_to_file(filename: &str, bytes:&[u8]) -> Result<bool, io::Error> 
 fn main() {
     let socket = UdpSocket::bind("0.0.0.0:8888").expect("Could not bind socket");
     let filename = "2.jpg";
-    let mut count = 0;
-    let mut chunks_cnt:u32 = 0xffff;
     let mut total_size:usize = 0;
-   // let mut s;
     let mut missing_indexes : Vec<u16> = Vec::new();
     let mut layout;
     let mut peer_addr;
@@ -51,18 +49,17 @@ fn main() {
     };
 
     loop {
-        let mut buf = [0u8; MAX_CHUNK_SIZE + AG_HEADER];
+        let mut buf = [0u8; MAX_DATA_LENGTH];
         //let mut missing_indexes = [0u16; 0x10000];
 
         let sock = socket.try_clone().expect("Failed to clone socket");
         match socket.recv_from(&mut buf) {
             Ok((size, src)) => { // thanks https://doc.rust-lang.org/beta/std/net/struct.UdpSocket.html#method.recv_from
-                total_size += size;
+
 
                 let packet_index:usize = (buf[0] as usize) << 8 | buf[1] as usize;
-                if count == 0 {
-
-                    chunks_cnt = (buf[2] as u32) << 8 | buf[3] as u32;
+                if missing_indexes.is_empty() {
+                    let chunks_cnt:u32 = (buf[2] as u32) << 8 | buf[3] as u32;
                     let n:usize = 0x10000 << next_power_of_two(chunks_cnt);
                    // assert_eq!(n.count_ones(), 1); // can check with this function that n is aligned on power of 2
                     unsafe {
@@ -75,7 +72,11 @@ fn main() {
 
 
                 }
-                missing_indexes.retain(|&x| x != packet_index as u16);
+                if missing_indexes.iter().any(|&i| i==packet_index as u16) {
+                    total_size += size;
+                    missing_indexes.retain(|&x| x != packet_index as u16);
+                }
+
 
                 unsafe {
                     let dst_ptr = bytes_buf.offset((packet_index*MAX_CHUNK_SIZE) as isize);
@@ -88,7 +89,6 @@ fn main() {
                  //   sock.send_to(&buf, &src).expect("Failed to send a response");
                 });
                // println!("count: {}", count);
-                count+=1;
 
             },
             Err(e) => {
@@ -97,7 +97,7 @@ fn main() {
 
         }
 
-         if count == chunks_cnt { // all chunks have been collected, write bytes to file
+         if missing_indexes.is_empty() { // all chunks have been collected, write bytes to file
             let bytes = unsafe { std::slice::from_raw_parts(bytes_buf, total_size) };
             let result = write_chunks_to_file(filename, &bytes);
             match result {
@@ -105,15 +105,13 @@ fn main() {
                 Ok(false) => println!("Could not create file: {}", false),
                 Err(e) => println!("Error: {}", e),
             }
-            count = 0;
             total_size = 0;
             unsafe { dealloc(bytes_buf, layout); }
         }
         else {
             unsafe {
-                let missing_bytes = missing_indexes.align_to::<u8>().1;
-                peer_addr.assume_init();
-                sock.send_to(&missing_bytes, &peer_addr.assume_init() ).expect("Failed to send a response");
+                let missing_chunks = missing_indexes.align_to::<u8>().1;
+                sock.send_to(&missing_chunks, &peer_addr.assume_init() ).expect("Failed to send a response");
             }
         }
         /*for e in missing_indexes.iter() {

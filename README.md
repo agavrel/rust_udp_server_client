@@ -1,6 +1,6 @@
 # Large file transfer over UDP, server/client in Rust
 
-### About [User Data Protocol](https://en.wikipedia.org/wiki/User_Datagram_Protocol)
+## About [User Data Protocol](https://en.wikipedia.org/wiki/User_Datagram_Protocol)
 
 > UDP is suitable for purposes where error checking and correction are either not necessary or are performed in the application; UDP avoids the overhead of such processing in the protocol stack. Time-sensitive applications often use UDP because dropping packets is preferable to waiting for packets delayed due to retransmission, which may not be an option in a real-time system.[1]
 
@@ -23,7 +23,9 @@ const MAX_CHUNK_SIZE = MAX_DATA_LENGTH - AG_HEADER
 **The following Program can send file up to about 4Gb** *(65535 (u16) chunks multiplied by chunk_size and divided by 1024^3 to convert from bytes to Gb).*  
 This can be extended to much higher limits simply by using extra bytes in the custom header `AG_HEADER`.  
 
-### Setting up server over internet
+It also provides mechanisms to resend chunks that have failed to be received.
+
+## Setting up server over internet
 
 #### Get public address
 
@@ -43,3 +45,13 @@ Go to your router homepage for settings, you will need to enter username and pas
 ```
 http://192.168.0.1/
 ```
+
+---
+## TODO List
+* Add filename information and detect true fileType based on file magic number
+* Make it peer-to-peer
+* build tracker server
+* GUI for the program, ability to visualize data (vulkan? flutter?)
+* Compression of file before being sent *(not sure if worth if for jpg, only 5% saved, 2% for m4a...)*
+* Ability to encrypt data before sending (TwoFish?)
+
