@@ -17,3 +17,22 @@ path = "src/client/bin/main.rs"
 
 [dependencies]
 tiny-keccak = { version = "2.0", features = ["sha3"] } # https://lib.rs/crates/tiny-keccak
+
+
+# By default optimizations (opt-level) will be level 3 for benchmarking and release, and 0 for the rest
+
+[profile.dev] # for the development profile, used by default in cargo build or cargo run
+codegen-units = 32 # compile faster
+opt-level = 0
+debug-assertions = true # true by default
+
+[profile.release] # for the release profile, used in cargo build --release or cargo run --release
+lto = true # will double compilation but gain very little perf
+opt-level = 3 # max, default value for release
+
+[profile.test] # for the testing profile, used in cargo test
+debug = true # include extra debug symbols in the final binary, false by default
+opt-level = 2
+debug-assertions = true # true by default
+
+[profile.bench] # for the benchmarking profile, used in cargo bench
