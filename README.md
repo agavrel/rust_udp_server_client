@@ -47,6 +47,7 @@ http://192.168.0.1/
 ```
 
 ---
+
 ## TODO List
 * Add filename information and detect true fileType based on file magic number
 * Make it peer-to-peer
@@ -55,3 +56,9 @@ http://192.168.0.1/
 * Compression of file before being sent *(not sure if worth if for jpg, only 5% saved, 2% for m4a...)*
 * Ability to encrypt data before sending (TwoFish?)
 
+---
+
+## Add crates to path
+```
+export PATH="/home/st4ck/.cargo/bin:$PATH"
+```

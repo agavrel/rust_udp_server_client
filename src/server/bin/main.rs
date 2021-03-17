@@ -38,16 +38,16 @@ fn write_chunks_to_file(filename: &str, bytes:&[u8]) -> io::Result<()> {
 
 fn main() {
     let socket = UdpSocket::bind("0.0.0.0:8888").expect("Could not bind socket");
-    let filename = "2.jpg";
+    let filename = "3.m4a";
     let mut total_size:usize = 0;
     let mut missing_indexes : Vec<u16> = Vec::new();
     let mut layout = MaybeUninit::<Layout>::uninit();
     let mut peer_addr = MaybeUninit::<SocketAddr>::uninit();
     let mut bytes_buf = std::ptr::null_mut();
-
+    let mut buf = [0u8; MAX_DATA_LENGTH];
 
     loop {
-        let mut buf = [0u8; MAX_DATA_LENGTH];
+
         //let mut missing_indexes = [0u16; 0x10000];
 
         let sock = socket.try_clone().expect("Failed to clone socket");
@@ -98,23 +98,22 @@ fn main() {
             }
 
         }
-
-         if missing_indexes.is_empty() { // all chunks have been collected, write bytes to file
+        if !missing_indexes.is_empty() {
+            unsafe {
+                let missing_chunks = missing_indexes.align_to::<u8>().1;
+                sock.send_to(&missing_chunks, &peer_addr.assume_init() ).expect("Failed to send a response");
+            }
+        }
+        else {// all chunks have been collected, write bytes to file
             let bytes = unsafe { std::slice::from_raw_parts(bytes_buf, total_size) };
             let result = write_chunks_to_file(filename, &bytes);
             match result {
                 Ok(()) => println!("Succesfully created file: {}", true),
                 Err(e) => println!("Error: {}", e),
             }
-            total_size = 0;
             unsafe { dealloc(bytes_buf, layout.assume_init()); }
         }
-        else {
-            unsafe {
-                let missing_chunks = missing_indexes.align_to::<u8>().1;
-                sock.send_to(&missing_chunks, &peer_addr.assume_init() ).expect("Failed to send a response");
-            }
-        }
+
         /*for e in missing_indexes.iter() {
             println!("{}", e);
         }*/
