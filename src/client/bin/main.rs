@@ -1,13 +1,15 @@
+use std::io::Read;
+use std::net::UdpSocket;
+use std::io;
+use std::fs;
+use tiny_keccak::Sha3; // to encrypt file
+use tiny_keccak::Hasher;
+
 const UDP_HEADER: usize = 8;
 const IP_HEADER: usize = 20;
 const AG_HEADER: usize = 4;
 const MAX_DATA_LENGTH: usize = (64 * 1024 - 1) - UDP_HEADER - IP_HEADER;
 const MAX_CHUNK_SIZE: usize = MAX_DATA_LENGTH - AG_HEADER;
-
-use std::io::Read;
-use std::net::UdpSocket;
-use std::io;
-use std::fs;
 
 pub fn get_chunks_from_file(mut filename: String,total_size: &mut usize) -> Result<Vec<Vec<u8>>, io::Error> {
     filename.pop(); // get read of the trailing '\n' in user input.
