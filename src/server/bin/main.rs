@@ -35,7 +35,32 @@ fn write_chunks_to_file(filename: &str, bytes:&[u8]) -> io::Result<()> {
     let mut file = File::create(filename)?;
     Ok(file.write_all(bytes)?)
 }
+/*
+fn extension(filename: &str) -> &str {
+    filename
+        .rfind('.')
+        .map(|idx| &filename[idx..])
+        .filter(|ext| ext.chars().skip(1).all(|c| c.is_ascii_alphanumeric()))
+        .unwrap_or("")
+}
 
+fn check_file_type_integrity(filename: &str, bytes: Vec<u8>) -> bool {
+    let map: HashMap<Vec<u8>, &str> = [
+        ([0x42u8, 0x40u8].to_vec(), ".bmp"),
+        ([0xFFu8, 0xD8u8, 0xFFu8].to_vec(), ".jpg"),
+        ([0x89u8, 0x50u8, 0x4Eu8, 0x47u8].to_vec(), ".png"),
+        ([0x47u8, 0x49u8, 0x46u8, 0x38u8].to_vec(), ".gif"),
+    ].iter().cloned().collect();
+
+    for (k, v) in& map {
+        if bytes.eq(k) == true {
+            return v == &extension(filename)
+        }
+        //println!("{:#x?} bytes -> {} file", k, v);
+    }
+    return true;
+}
+*/
 fn main() {
     let socket = UdpSocket::bind("0.0.0.0:8888").expect("Could not bind socket");
     let filename = "3.m4a";
@@ -106,12 +131,18 @@ fn main() {
         }
         else {// all chunks have been collected, write bytes to file
             let bytes = unsafe { std::slice::from_raw_parts(bytes_buf, total_size) };
-            let result = write_chunks_to_file(filename, &bytes);
-            match result {
-                Ok(()) => println!("Succesfully created file: {}", true),
-                Err(e) => println!("Error: {}", e),
-            }
+        //    if check_file_type_integrity(filename, bytes) == true {
+                let result = write_chunks_to_file(filename, &bytes);
+                match result {
+                    Ok(()) => println!("Succesfully created file: {}", true),
+                    Err(e) => println!("Error: {}", e),
+                }
+          /*  }
+            else {
+                println!("file  {} does not match his true type", filename),
+            }*/
             unsafe { dealloc(bytes_buf, layout.assume_init()); }
+
         }
 
         /*for e in missing_indexes.iter() {
