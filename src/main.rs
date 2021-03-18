@@ -2,11 +2,11 @@
 // use tiny_keccak::Hasher;
 //use ring::ring;
 //use ring::test;
-use std::collections::HashMap;
-use std::fs::File;
-use std::io;
-use std::io::Write;
-use std::path::Path;
+//use std::collections::HashMap;
+//use std::fs::File;
+//use std::io;
+//use std::io::Write;
+//use std::path::Path;
 
 // thanks https://www.rosettacode.org/wiki/Extract_file_extension#Rust
 fn extension(filename: &str) -> &str {
@@ -17,27 +17,49 @@ fn extension(filename: &str) -> &str {
         .unwrap_or("")
 }
 
-fn check_file_type(filename: &str, bytes: Vec<u8>) -> bool {
-    let map: HashMap<Vec<u8>, &str> = [
-        ([0x42u8, 0x40u8].to_vec(), ".bmp"),
-        ([0xFFu8, 0xD8u8, 0xFFu8].to_vec(), ".jpg"),
-        ([0x89u8, 0x50u8, 0x4Eu8, 0x47u8].to_vec(), ".png"),
-        ([0x47u8, 0x49u8, 0x46u8, 0x38u8].to_vec(), ".gif"),
-    ].iter().cloned().collect();
 
-    for (k, v) in& map {
-        if bytes.eq(k) == true {
-            return v == &extension(filename)
+
+
+// https://en.wikipedia.org/wiki/List_of_file_signatures
+// NB: magic (number) means file signature
+fn is_file_extension_matching_magic(filename: &str, bytes: Vec<u8>) -> bool {
+    const WILD: u8 = 0xFC; // byte
+    let file_extension =  extension(filename);
+
+    // get supposed magic based on file extension
+    let v = match file_extension {
+            ".bmp" => [[0x42, 0x4D].to_vec()].to_vec(),
+            ".jpg" => [[0xFF, 0xD8, 0xFF].to_vec()].to_vec(),
+            ".png" => [[0x89, 0x50, 0x4E, 0x47].to_vec()].to_vec(),
+            ".gif" => [[0x47, 0x49, 0x46, 0x38].to_vec()].to_vec(),
+            ".m4a" => [[0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70, 0x4D, 0x34, 0x41].to_vec()].to_vec(),
+            ".pdf" => [[0x25, 0x50, 0x44, 0x46, 0x2d].to_vec()].to_vec(),
+            ".avi" => [[0x52, 0x49, 0x46, 0x46, WILD, WILD, WILD, WILD, 0x41, 0x56, 0x49, 0x20].to_vec()].to_vec(),
+            ".mp3" => [[0xFF, 0xFB].to_vec(), [0xFF, 0xF2].to_vec(), [0xFF, 0xF3].to_vec()].to_vec(),
+            _ => return true,
+        };
+
+    // check that actual magic from bytes match its supposed magic
+    for magic_bytes in v.iter() {
+        for i in 0..magic_bytes.len() - 1 {
+            //println!("{:x} ", magic_bytes[i]);
+            if magic_bytes[i] ^ bytes[i] != 0 && magic_bytes[i] != WILD {
+                continue
+            }
         }
-        println!("{:#x?} bytes -> {} file", k, v);
+        if magic_bytes[magic_bytes.len() - 1] ^ bytes[magic_bytes.len() - 1] == 0 ||
+            magic_bytes[magic_bytes.len() - 1] == WILD {
+            return true;
+        }
     }
-    return true;
+    println!("{} with {} ext does not have magic {:x?} matching its extension", filename, file_extension, v);
+    return false;
 }
 //https://stackoverflow.com/questions/44575380/is-there-any-way-to-insert-multiple-entries-into-a-hashmap-at-once-in-rust
 
 fn main() {
-    let mut bytes_buf: Vec<u8> = [0x42u8, 0x40u8].to_vec();
-    let check: bool = check_file_type("baba.bmp", bytes_buf);
+    let bytes_buf: Vec<u8> = [0xFF, 0xFB ].to_vec();
+    let check: bool = is_file_extension_matching_magic("baba.mp3", bytes_buf);
     println!("{}", check);
 
     // Type inference lets us omit an explicit type signature (which
