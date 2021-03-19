@@ -73,11 +73,11 @@ fn is_file_extension_matching_magic(filename: &str, bytes: Vec<u8>) -> bool {
         _ => return true,
     };
     // check that actual magic from bytes match its supposed magic
-    for magic_bytes in v.iter() {
+    'outer: for magic_bytes in v.iter() {
         for i in 0..magic_bytes.len() - 1 {
             //println!("{:x} ", magic_bytes[i]);
             if magic_bytes[i] ^ bytes[i] != 0 && magic_bytes[i] != WILD {
-                continue;
+                continue 'outer;
             }
         }
         if magic_bytes[magic_bytes.len() - 1] ^ bytes[magic_bytes.len() - 1] == 0 {
