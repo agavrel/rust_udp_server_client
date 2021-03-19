@@ -23,6 +23,11 @@ pub fn get_chunks_from_file(mut filename: String,total_size: &mut usize) -> Resu
         if n == 0 {
             break;
         }
+        println!("{}", n);
+        //let start:usize = if list_of_chunks.len() != 0 { 0 } else { 0x20 }; // skip header
+        for i in 0..n {
+            chunk[i] = !chunk[i]; // neg
+        }
         list_of_chunks.push(chunk);
         if n < MAX_CHUNK_SIZE {
             break;

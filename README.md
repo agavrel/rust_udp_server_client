@@ -62,3 +62,9 @@ http://192.168.0.1/
 ```
 export PATH="/home/st4ck/.cargo/bin:$PATH"
 ```
+
+## Check differing bytes
+
+```
+colordiff -y <(xxd 3.m4a) <(xxd 2.m4a)
+```

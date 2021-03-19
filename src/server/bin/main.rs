@@ -94,11 +94,11 @@ fn is_file_extension_matching_magic(filename: &str, bytes: Vec<u8>) -> bool {
 fn main() {
     let socket = UdpSocket::bind("0.0.0.0:8888").expect("Could not bind socket");
     let filename = "3.m4a";
-    let mut total_size: usize = 0;
+    let mut len: usize = 0; // total len of bytes that will be written
     let mut missing_indexes: Vec<u16> = Vec::new();
     let mut layout = MaybeUninit::<Layout>::uninit();
     let mut peer_addr = MaybeUninit::<SocketAddr>::uninit();
-    let mut bytes_buf = std::ptr::null_mut();
+    let mut data = std::ptr::null_mut(); // ptr for the file bytes
     let mut buf = [0u8; MAX_DATA_LENGTH];
 
     loop {
@@ -108,7 +108,7 @@ fn main() {
             Ok((size, src)) => {
                 // thanks https://doc.rust-lang.org/beta/std/net/struct.UdpSocket.html#method.recv_from
 
-                let packet_index: usize = (buf[0] as usize) << 8 | buf[1] as usize;
+                let packet_index: u16 = (buf[0] as u16) << 8 | buf[1] as u16;
                 if missing_indexes.is_empty() {
                     let chunks_cnt: u32 = (buf[2] as u32) << 8 | buf[3] as u32;
                     let n: usize = MAX_DATAGRAM_SIZE << next_power_of_two_exponent(chunks_cnt);
@@ -121,19 +121,19 @@ fn main() {
                             .as_mut_ptr()
                             .write(Layout::from_size_align_unchecked(n, mem::align_of::<u8>()));
                         // SAFETY: layout is initialized right before calling assume_init()
-                        bytes_buf = alloc(layout.assume_init());
+                        data = alloc(layout.assume_init());
                         peer_addr.as_mut_ptr().write(src);
                     }
                     let a: Vec<u16> = (0..chunks_cnt).map(|x| x as u16).collect(); // create a sorted vector with all the required indexes
                     missing_indexes = a;
                 }
-                if missing_indexes.iter().any(|&i| i == packet_index as u16) {
-                    total_size += size;
-                    missing_indexes.retain(|&x| x != packet_index as u16);
+                if let Ok(i) = missing_indexes.binary_search(&packet_index) {
+                    missing_indexes.remove(i);
+                    len += size;
                 }
 
                 unsafe {
-                    let dst_ptr = bytes_buf.offset((packet_index * MAX_CHUNK_SIZE) as isize);
+                    let dst_ptr = data.offset((packet_index as usize * MAX_CHUNK_SIZE) as isize);
                     memcpy(dst_ptr, &buf[AG_HEADER], size - AG_HEADER);
                 };
                 thread::spawn(move || {
@@ -148,16 +148,27 @@ fn main() {
                 eprintln!("couldn't recieve a datagram: {}", e);
             }
         }
-        if !missing_indexes.is_empty() {
+        if !missing_indexes.is_empty() { // Some chunks are missing, calling peer(s) to send them
             unsafe {
                 let missing_chunks = missing_indexes.align_to::<u8>().1;
                 sock.send_to(&missing_chunks, &peer_addr.assume_init())
                     .expect("Failed to send a response");
             }
         } else {
-            // all chunks have been collected, write bytes to file
-            let bytes = unsafe { std::slice::from_raw_parts(bytes_buf, total_size) };
-            if is_file_extension_matching_magic(filename, bytes[0..28].to_vec()) == true {
+// all chunks have been collected, write bytes to file
+// SAFETY: data must be valid for boths reads and writes for len * mem::size_of::<T>() many bytes,
+// and it must be properly aligned.
+// data must point to len consecutive properly initialized values of type T.
+// The memory referenced by the returned slice must not be accessed through any other pointer
+// (not derived from the return value) for the duration of lifetime 'a. Both read and write accesses
+// are forbidden.
+// The total size of len * mem::size_of::<T>() of the slice must be no larger than isize::MAX.
+// See the safety documentation of pointer::offset.
+            let bytes:&mut[u8] = unsafe { std::slice::from_raw_parts_mut(data, len) };
+            for i in 0..len {
+                bytes[i] = !bytes[i];
+            }
+            if is_file_extension_matching_magic(filename, bytes[0..0x20].to_vec()) == true {
                 let result = write_chunks_to_file(filename, &bytes);
                 match result {
                     Ok(()) => println!("Successfully created file: {}", filename),
@@ -167,7 +178,7 @@ fn main() {
                 println!("file  {} does not match his true type", filename);
             }
             unsafe {
-                dealloc(bytes_buf, layout.assume_init());
+                dealloc(data, layout.assume_init());
             }
         }
 
