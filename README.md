@@ -49,7 +49,7 @@ http://192.168.0.1/
 ---
 
 ## TODO List
-* Add filename information and detect true fileType based on file magic number
+* <s>Add filename information and detect true fileType based on file magic number</s> 21/03/18 done
 * Make it peer-to-peer
 * build tracker server
 * GUI for the program, ability to visualize data (vulkan? flutter?)
