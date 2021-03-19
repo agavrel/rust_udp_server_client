@@ -8,67 +8,6 @@
 //use std::io::Write;
 //use std::path::Path;
 
-// Thanks https://www.rosettacode.org/wiki/Extract_file_extension#Rust
-fn extension(filename: &str) -> &str {
-    filename
-        .rfind('.')
-        .map(|idx| &filename[idx..])
-        .filter(|ext| ext.chars().skip(1).all(|c| c.is_ascii_alphanumeric()))
-        .unwrap_or("")
-}
-
-// https://en.wikipedia.org/wiki/List_of_file_signatures
-// NB: magic (number) means file signature
-fn is_file_extension_matching_magic(filename: &str, bytes: Vec<u8>) -> bool {
-    const WILD: u8 = 0xFC; // unspecified byte, could be anything, just make sure
-    // that it is not one of the already used byte among magic numbers
-    let file_extension = extension(filename);
-
-    // get supposed magic based on file extension
-    let v = match file_extension {
-        ".bmp" => [[0x42, 0x4D].to_vec()].to_vec(),
-        ".jpg" => [[0xFF, 0xD8, 0xFF].to_vec()].to_vec(),
-        ".png" => [[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A].to_vec()].to_vec(),
-        ".gif" => [[0x47, 0x49, 0x46, 0x38].to_vec()].to_vec(),
-        ".m4a" => [[
-            0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70, 0x4D, 0x34, 0x41,
-        ]
-        .to_vec()]
-        .to_vec(),
-        ".pdf" => [[0x25, 0x50, 0x44, 0x46, 0x2d].to_vec()].to_vec(),
-        ".avi" => [[
-            0x52, 0x49, 0x46, 0x46, WILD, WILD, WILD, WILD, 0x41, 0x56, 0x49, 0x20,
-        ]
-        .to_vec()]
-        .to_vec(),
-        ".mp3" => [
-            [0xFF, 0xFB].to_vec(),
-            [0xFF, 0xF2].to_vec(),
-            [0xFF, 0xF3].to_vec(),
-        ].to_vec(),
-        ".webp" => [[0x52, 0x49, 0x46, 0x46, WILD, WILD, WILD, WILD, 0x57, 0x45, 0x42, 0x50].to_vec()].to_vec(),
-        _ => return true,
-    };
-    // check that actual magic from bytes match its supposed magic
-    for magic_bytes in v.iter() {
-        for i in 0..magic_bytes.len() - 1 {
-            //println!("{:x} ", magic_bytes[i]);
-            if magic_bytes[i] ^ bytes[i] != 0 && magic_bytes[i] != WILD {
-                continue;
-            }
-        }
-        if magic_bytes[magic_bytes.len() - 1] ^ bytes[magic_bytes.len() - 1] == 0
-            || magic_bytes[magic_bytes.len() - 1] == WILD
-        {
-            return true;
-        }
-    }
-    println!(
-        "{} with {} ext does not have magic {:x?} matching its extension",
-        filename, file_extension, v
-    );
-    return false;
-}
 
 fn main() {
     let bytes_buf: Vec<u8> = [0xFF, 0xFB].to_vec();

@@ -49,7 +49,7 @@ fn extension(filename: &str) -> &str {
 // NB: magic (number) means file signature
 fn is_file_extension_matching_magic(filename: &str, bytes: Vec<u8>) -> bool {
     const WILD: u8 = 0xFC; // unspecified byte, could be anything, just make sure
-                           // that it is not one of the already used byte among magic numbers
+                           // that it is not one of the already used bytes among magic numbers
     let file_extension = extension(filename);
 
     // get supposed magic based on file extension
@@ -80,9 +80,7 @@ fn is_file_extension_matching_magic(filename: &str, bytes: Vec<u8>) -> bool {
                 continue;
             }
         }
-        if magic_bytes[magic_bytes.len() - 1] ^ bytes[magic_bytes.len() - 1] == 0
-            || magic_bytes[magic_bytes.len() - 1] == WILD
-        {
+        if magic_bytes[magic_bytes.len() - 1] ^ bytes[magic_bytes.len() - 1] == 0 {
             return true;
         }
     }
