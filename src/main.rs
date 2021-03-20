@@ -8,76 +8,34 @@
 //use std::io::Write;
 //use std::path::Path;
 
-
-// Thanks https://www.rosettacode.org/wiki/Extract_file_extension#Rust
-fn extension(filename: &str) -> &str {
-    filename
-        .rfind('.')
-        .map(|idx| &filename[idx..])
-        .filter(|ext| ext.chars().skip(1).all(|c| c.is_ascii_alphanumeric()))
-        .unwrap_or("")
-}
-
-// https://en.wikipedia.org/wiki/List_of_file_signatures
-// NB: magic (number) means file signature
-fn is_file_extension_matching_magic(filename: &str, bytes: Vec<u8>) -> bool {
-    const WILD: u8 = 0xFC; // unspecified byte, could be anything, just make sure
-                           // that it is not one of the already used byte among magic numbers
-    let file_extension = extension(filename);
-
-    // get supposed magic based on file extension
-    let v = match file_extension {
-        ".bmp" => [[0x42, 0x4D].to_vec()].to_vec(),
-        ".jpg" => [[0xFF, 0xD8, 0xFF].to_vec()].to_vec(),
-        ".png" => [[0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A].to_vec()].to_vec(),
-        ".gif" => [[0x47, 0x49, 0x46, 0x38].to_vec()].to_vec(),
-        ".m4a" => [[
-            0x00, 0x00, 0x00, 0x20, 0x66, 0x74, 0x79, 0x70, 0x4D, 0x34, 0x41,
-        ]
-        .to_vec()]
-        .to_vec(),
-        ".pdf" => [[0x25, 0x50, 0x44, 0x46, 0x2d].to_vec()].to_vec(),
-        ".avi" => [[
-            0x52, 0x49, 0x46, 0x46, WILD, WILD, WILD, WILD, 0x41, 0x56, 0x49, 0x20,
-        ]
-        .to_vec()]
-        .to_vec(),
-        ".mp3" => [
-            [0xFF, 0xFB].to_vec(),
-            [0xFF, 0xF2].to_vec(),
-            [0xFF, 0xF3].to_vec(),
-        ]
-        .to_vec(),
-        ".webp" => [[
-            0x52, 0x49, 0x46, 0x46, WILD, WILD, WILD, WILD, 0x57, 0x45, 0x42, 0x50,
-        ]
-        .to_vec()]
-        .to_vec(),
-        _ => return true,
-    };
-    // check that actual magic from bytes match its supposed magic
-    'outer: for magic_bytes in v.iter() {
-        for i in 0..magic_bytes.len() - 1 {
-            //println!("{:x} ", magic_bytes[i]);
-            if magic_bytes[i] ^ bytes[i] != 0 && magic_bytes[i] != WILD {
-                continue 'outer;
-            }
-        }
-        if magic_bytes[magic_bytes.len() - 1] ^ bytes[magic_bytes.len() - 1] == 0 {
-            return true;
-        }
-    }
-    println!(
-        "{} with {} ext does not have magic {:x?} matching its extension",
-        filename, file_extension, v
-    );
-    return false;
-}
+//use sodiumoxide::crypto::hash;
+//use sodiumoxide::crypto::shorthash;
+use sodiumoxide::randombytes::randombytes;
+use sodiumoxide::crypto::secretstream::{gen_key, Stream, Tag};
 
 fn main() {
-    let bytes_buf: Vec<u8> = [0xAA, 0xFB].to_vec();
-    let check: bool = is_file_extension_matching_magic("test.mp3", bytes_buf);
-    println!("{}", check);
+   // let key = shorthash::gen_key();
+    let data: Vec<u8> = randombytes(0xffff);
+    // println!("{:?}\n", data);
+
+    // initialize encrypt secret stream
+    let key = gen_key();
+    let (mut enc_stream, header) = Stream::init_push(&key).unwrap();
+
+    let ciphertext1 = enc_stream.push(&data, None, Tag::Final).unwrap();
+    println!("{} {:?} \n", data.len(), &data[0..20]);
+    println!("{} {:?} \n", ciphertext1.len(), &ciphertext1[17..37]); // header seems to be 17 bytes length
+
+    // initialize decrypt secret stream
+    let mut dec_stream = Stream::init_pull(&header, &key).unwrap();
+    // decrypt last message.
+    assert!(!dec_stream.is_finalized());
+    let (decrypted3, tag3) = dec_stream.pull(&ciphertext1, None).unwrap();
+    assert_eq!(tag3, Tag::Final);
+    assert_eq!(data, &decrypted3[..]);
+
+    // dec_stream is now finalized.
+    assert!(dec_stream.is_finalized());
 }
 
 //https://stackoverflow.com/questions/44575380/is-there-any-way-to-insert-multiple-entries-into-a-hashmap-at-once-in-rust
