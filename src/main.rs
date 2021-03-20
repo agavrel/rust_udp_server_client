@@ -8,6 +8,7 @@
 //use std::io::Write;
 //use std::path::Path;
 
+
 // Thanks https://www.rosettacode.org/wiki/Extract_file_extension#Rust
 fn extension(filename: &str) -> &str {
     filename

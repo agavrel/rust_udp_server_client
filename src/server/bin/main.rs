@@ -2,8 +2,8 @@ use std::io::Read;
 use std::net::UdpSocket;
 use std::io;
 use std::fs;
-use tiny_keccak::Sha3; // to encrypt file
-use tiny_keccak::Hasher;
+//use tiny_keccak::Sha3; // to encrypt file
+//use tiny_keccak::Hasher;
 
 const UDP_HEADER: usize = 8;
 const IP_HEADER: usize = 20;

@@ -8,6 +8,8 @@ use std::net::SocketAddr;
 use std::net::UdpSocket;
 use std::thread;
 
+mod tests;
+
 const UDP_HEADER: usize = 8;
 const IP_HEADER: usize = 20;
 const AG_HEADER: usize = 4;
